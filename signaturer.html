@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Elektroniska Signaturer: Spara och Ladda ner</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #101318;
+      --panel: #181d25;
+      --surface: #202631;
+      --border: #343d4b;
+      --text: #f2f4f8;
+      --muted: #adb7c6;
+      --accent: #8bb8ff;
+      --accent-text: #101722;
+      --danger: #ffb4ab;
+      --focus: #ffd166;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button,
+    input,
+    select {
+      min-height: 44px;
+      padding: .65rem .85rem;
+      border: 1px solid var(--border);
+      border-radius: .65rem;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+
+      &:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 3px;
+      }
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 650;
+
+      &:hover:not(:disabled) {
+        border-color: var(--accent);
+      }
+
+      &:disabled {
+        cursor: not-allowed;
+        opacity: .55;
+      }
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .settings-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      min-width: 0;
+      padding: 1.25rem;
+      border-right: 1px solid var(--border);
+      background: var(--panel);
+
+      & h1 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+
+      & h2 {
+        margin: 0 0 .6rem;
+        font-size: 1rem;
+      }
+    }
+
+    .panel-heading,
+    .page-heading,
+    .saved-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .7rem;
+    }
+
+    .field {
+      display: grid;
+      gap: .4rem;
+
+      & label {
+        font-weight: 600;
+      }
+
+      & input,
+      & select {
+        width: 100%;
+      }
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .6rem;
+    }
+
+    .hint,
+    .muted {
+      color: var(--muted);
+    }
+
+    .hint {
+      margin: 0;
+      font-size: .9rem;
+      line-height: 1.5;
+    }
+
+    .primary {
+      border-color: transparent;
+      background: var(--accent);
+      color: var(--accent-text);
+    }
+
+    .danger {
+      color: var(--danger);
+    }
+
+    .saved-list {
+      display: grid;
+      gap: .55rem;
+      max-height: 35vh;
+      overflow: auto;
+    }
+
+    .saved-item {
+      align-items: stretch;
+      padding: .5rem;
+      border: 1px solid var(--border);
+      border-radius: .7rem;
+      background: var(--bg);
+
+      &.active {
+        border-color: var(--accent);
+      }
+
+      & button {
+        min-height: 40px;
+        padding: .4rem .55rem;
+      }
+
+      & .select-signature {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        text-align: left;
+      }
+    }
+
+    .preview-area {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 1rem;
+      min-width: 0;
+      min-height: 100vh;
+      padding: 1.25rem;
+    }
+
+    .page-heading {
+      justify-content: flex-start;
+    }
+
+    .menu-button {
+      display: none;
+    }
+
+    .preview-content {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .canvas-wrap {
+      display: grid;
+      gap: .75rem;
+      width: min(100%, 960px);
+    }
+
+    .canvas-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: .6rem;
+
+      & h2 {
+        margin: 0;
+        font-size: 1rem;
+      }
+    }
+
+    .paper {
+      overflow: hidden;
+      border: 1px solid #c8ccd2;
+      border-radius: .8rem;
+      background: #fff;
+      box-shadow: 0 20px 50px #0005;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: min(65vh, 560px);
+      min-height: 240px;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .status {
+      min-height: 1.5rem;
+      margin: 0;
+      color: var(--muted);
+    }
+
+    dialog {
+      width: min(92vw, 440px);
+      padding: 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: .9rem;
+      background: var(--panel);
+      color: var(--text);
+
+      &::backdrop {
+        background: #0009;
+      }
+    }
+
+    .dialog-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: .6rem;
+      margin-top: 1rem;
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        display: block;
+      }
+
+      .settings-panel {
+        position: fixed;
+        z-index: 5;
+        inset: 0 auto 0 0;
+        width: min(88vw, 360px);
+        max-height: 100dvh;
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: 0;
+        box-shadow: 0 0 0 100vmax #0008;
+
+        &:not(:popover-open) {
+          display: none;
+        }
+      }
+
+      .preview-area {
+        min-height: 100vh;
+        padding: 1rem;
+      }
+
+      .menu-button {
+        display: inline-block;
+      }
+
+      canvas {
+        height: min(62vh, 480px);
+      }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      button {
+        transition: border-color .15s ease, background-color .15s ease;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="settings-panel" id="settingsPanel" aria-label="Inställningar och sparade underskrifter">
+      <div class="panel-heading">
+        <h1>Inställningar</h1>
+        <button type="button" id="closePanel" class="menu-button" aria-label="Stäng inställningspanelen">Stäng</button>
+      </div>
+
+      <div class="field">
+        <label for="signatureName">Namn på underskrift</label>
+        <input id="signatureName" type="text" maxlength="80" autocomplete="off" placeholder="Exempel: Avtal juni">
+      </div>
+
+      <div class="field">
+        <label for="format">Format för bildnedladdning</label>
+        <select id="format">
+          <option value="image/png">PNG</option>
+          <option value="image/webp">WebP</option>
+          <option value="image/jpeg">JPEG</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="saveButton" class="primary">Spara ny</button>
+        <button type="button" id="updateButton" disabled>Uppdatera</button>
+      </div>
+
+      <div class="actions">
+        <button type="button" id="clearButton">Rensa plattan</button>
+        <button type="button" id="cancelEditButton" disabled>Avsluta redigering</button>
+      </div>
+
+      <button type="button" id="downloadButton">Ladda ner bild</button>
+      <button type="button" id="downloadZipButton">Ladda ner alla som ZIP</button>
+
+      <section aria-labelledby="savedHeading">
+        <h2 id="savedHeading">Sparade underskrifter</h2>
+        <p class="hint">Välj en underskrift för att läsa in och redigera den.</p>
+        <div id="savedList" class="saved-list" aria-label="Sparade underskrifter"></div>
+      </section>
+
+      <p class="hint">Underskrifterna sparas lokalt i den här webbläsaren.</p>
+    </aside>
+
+    <main class="preview-area">
+      <header class="page-heading">
+        <button type="button" id="openPanel" class="menu-button" aria-controls="settingsPanel">Inställningar</button>
+        <span class="muted">Förhandsvisning till höger om inställningspanelen</span>
+      </header>
+
+      <section class="preview-content" aria-label="Förhandsvisning av underskrift">
+        <div class="canvas-wrap">
+          <div class="canvas-heading">
+            <h2>Förhandsvisning</h2>
+            <span class="hint">Skriv med mus, penna eller pekskärm.</span>
+          </div>
+          <div class="paper">
+            <canvas id="signatureCanvas" role="img" aria-label="Tom platta för att skriva en underskrift"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </main>
+  </div>
+
+  <dialog id="confirmDialog" aria-labelledby="dialogTitle">
+    <h2 id="dialogTitle">Radera underskrift?</h2>
+    <p id="dialogMessage">Underskriften tas bort från den här webbläsaren.</p>
+    <div class="dialog-actions">
+      <button type="button" id="cancelDelete">Avbryt</button>
+      <button type="button" id="confirmDelete" class="danger">Radera</button>
+    </div>
+  </dialog>
+
+  <script>
+    "use strict";
+
+    const DB_NAME = "local-signature-manager";
+    const STORE_NAME = "signatures";
+    const canvas = document.getElementById("signatureCanvas");
+    const context = canvas.getContext("2d");
+    const nameInput = document.getElementById("signatureName");
+    const savedList = document.getElementById("savedList");
+    const status = document.getElementById("status");
+    const settingsPanel = document.getElementById("settingsPanel");
+    const dialog = document.getElementById("confirmDialog");
+    const mobileQuery = window.matchMedia("(max-width: 760px)");
+
+    let db;
+    let activeId = null;
+    let drawing = false;
+    let hasInk = false;
+    let deleteTarget = null;
+
+    function configurePanel() {
+      if (mobileQuery.matches) {
+        settingsPanel.setAttribute("popover", "auto");
+      } else {
+        if (settingsPanel.matches(":popover-open")) settingsPanel.hidePopover();
+        settingsPanel.removeAttribute("popover");
+        settingsPanel.style.display = "";
+      }
+    }
+
+    mobileQuery.addEventListener("change", configurePanel);
+    configurePanel();
+
+    function announce(message) {
+      status.textContent = message;
+    }
+
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = () => {
+          if (!request.result.objectStoreNames.contains(STORE_NAME)) {
+            request.result.createObjectStore(STORE_NAME, { keyPath: "id" });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function store(mode = "readonly") {
+      return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
+    }
+
+    function getAll() {
+      return new Promise((resolve, reject) => {
+        const request = store().getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function putRecord(record) {
+      return new Promise((resolve, reject) => {
+        const request = store("readwrite").put(record);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function removeRecord(id) {
+      return new Promise((resolve, reject) => {
+        const request = store("readwrite").delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    function setupCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const ratio = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
+      canvas.width = Math.round(rect.width * ratio);
+      canvas.height = Math.round(rect.height * ratio);
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, rect.width, rect.height);
+      context.strokeStyle = "#101318";
+      context.lineWidth = 2.5;
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      hasInk = false;
+      canvas.setAttribute("aria-label", "Tom platta för att skriva en underskrift");
+    }
+
+    function pointerPosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    canvas.addEventListener("pointerdown", event => {
+      if (event.button !== undefined && event.button !== 0) return;
+      event.preventDefault();
+      canvas.setPointerCapture(event.pointerId);
+      const point = pointerPosition(event);
+      drawing = true;
+      context.beginPath();
+      context.moveTo(point.x, point.y);
+      context.lineTo(point.x + .01, point.y + .01);
+      context.stroke();
+      hasInk = true;
+      canvas.setAttribute("aria-label", "Platta med underskrift");
+    });
+
+    canvas.addEventListener("pointermove", event => {
+      if (!drawing) return;
+      event.preventDefault();
+      const point = pointerPosition(event);
+      context.lineTo(point.x, point.y);
+      context.stroke();
+    });
+
+    function stopDrawing() {
+      drawing = false;
+      context.closePath();
+    }
+
+    canvas.addEventListener("pointerup", stopDrawing);
+    canvas.addEventListener("pointercancel", stopDrawing);
+    canvas.addEventListener("lostpointercapture", stopDrawing);
+
+    function clearCanvas() {
+      setupCanvas();
+      announce("Plattan är rensad.");
+    }
+
+    function canvasBlob(type) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(
+          blob => blob ? resolve(blob) : reject(new Error("Bild kunde inte skapas.")),
+          type,
+          .92
+        );
+      });
+    }
+
+    function safeFilename(value) {
+      const cleaned = value.normalize("NFKC")
+        .replace(/[^\p{L}\p{N}._ -]/gu, "")
+        .trim()
+        .replace(/[ .]+/g, "_")
+        .slice(0, 80);
+      return cleaned || "underskrift";
+    }
+
+    function extensionFor(type) {
+      if (type === "image/jpeg") return "jpg";
+      if (type === "image/webp") return "webp";
+      return "png";
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    async function downloadImage() {
+      if (!hasInk) {
+        announce("Skriv en underskrift på plattan först.");
+        return;
+      }
+
+      const blob = await canvasBlob(document.getElementById("format").value);
+      triggerDownload(blob, safeFilename(nameInput.value) + "." + extensionFor(blob.type));
+      announce("Bildfilen har laddats ner.");
+    }
+
+    async function saveNew() {
+      if (!hasInk) {
+        announce("Skriv en underskrift på plattan först.");
+        return;
+      }
+
+      const record = {
+        id: crypto.randomUUID(),
+        name: nameInput.value.trim() || "Underskrift",
+        blob: await canvasBlob("image/png"),
+        updatedAt: Date.now()
+      };
+
+      await putRecord(record);
+      activeId = record.id;
+      updateControls();
+      await renderList();
+      announce("Underskriften har sparats lokalt.");
+    }
+
+    async function updateActive() {
+      if (!activeId) return;
+
+      if (!hasInk) {
+        announce("Skriv en underskrift innan du uppdaterar.");
+        return;
+      }
+
+      const records = await getAll();
+      const record = records.find(item => item.id === activeId);
+
+      if (!record) {
+        activeId = null;
+        updateControls();
+        announce("Underskriften hittades inte.");
+        return;
+      }
+
+      record.name = nameInput.value.trim() || "Underskrift";
+      record.blob = await canvasBlob("image/png");
+      record.updatedAt = Date.now();
+      await putRecord(record);
+      await renderList();
+      announce("Underskriften har uppdaterats.");
+    }
+
+    function updateControls() {
+      document.getElementById("updateButton").disabled = !activeId;
+      document.getElementById("cancelEditButton").disabled = !activeId;
+      document.getElementById("saveButton").textContent = activeId ? "Spara som ny" : "Spara ny";
+    }
+
+    function loadBlob(blob) {
+      const url = URL.createObjectURL(blob);
+      const image = new Image();
+
+      image.onload = () => {
+        const rect = canvas.getBoundingClientRect();
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, rect.width, rect.height);
+
+        const scale = Math.min((rect.width * .86) / image.width, (rect.height * .86) / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        context.drawImage(image, (rect.width - width) / 2, (rect.height - height) / 2, width, height);
+
+        URL.revokeObjectURL(url);
+        hasInk = true;
+        canvas.setAttribute("aria-label", "Platta med inläst underskrift");
+      };
+
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        announce("Kunde inte läsa in underskriften.");
+      };
+
+      image.src = url;
+    }
+
+    async function renderList() {
+      const records = (await getAll()).sort((a, b) => b.updatedAt - a.updatedAt);
+      savedList.replaceChildren();
+
+      if (!records.length) {
+        const empty = document.createElement("p");
+        empty.className = "hint";
+        empty.textContent = "Inga underskrifter sparade ännu.";
+        savedList.append(empty);
+        return;
+      }
+
+      for (const record of records) {
+        const row = document.createElement("div");
+        row.className = "saved-item" + (record.id === activeId ? " active" : "");
+
+        const select = document.createElement("button");
+        select.type = "button";
+        select.className = "select-signature";
+        select.textContent = record.name;
+        select.setAttribute("aria-label", "Redigera " + record.name);
+        select.addEventListener("click", () => {
+          activeId = record.id;
+          nameInput.value = record.name;
+          updateControls();
+          loadBlob(record.blob);
+          renderList();
+          announce("Underskriften har lästs in för redigering.");
+          if (mobileQuery.matches && settingsPanel.matches(":popover-open")) {
+            settingsPanel.hidePopover();
+          }
+        });
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "danger";
+        remove.textContent = "Radera";
+        remove.setAttribute("aria-label", "Radera " + record.name);
+        remove.addEventListener("click", () => {
+          deleteTarget = record;
+          document.getElementById("dialogMessage").textContent =
+            "”" + record.name + "” tas bort från den här webbläsaren.";
+          dialog.showModal();
+        });
+
+        row.append(select, remove);
+        savedList.append(row);
+      }
+    }
+
+    const CRC_TABLE = (() => {
+      const table = new Uint32Array(256);
+      for (let n = 0; n < 256; n++) {
+        let value = n;
+        for (let bit = 0; bit < 8; bit++) {
+          value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+        }
+        table[n] = value >>> 0;
+      }
+      return table;
+    })();
+
+    function crc32(bytes) {
+      let crc = -1;
+      for (const byte of bytes) crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ byte) & 255];
+      return (crc ^ -1) >>> 0;
+    }
+
+    function write16(view, offset, value) {
+      view.setUint16(offset, value, true);
+    }
+
+    function write32(view, offset, value) {
+      view.setUint32(offset, value >>> 0, true);
+    }
+
+    async function makeZip(files) {
+      const encoder = new TextEncoder();
+      const localParts = [];
+      const centralParts = [];
+      let offset = 0;
+
+      for (const file of files) {
+        const name = encoder.encode(file.name);
+        const data = new Uint8Array(await file.blob.arrayBuffer());
+        const crc = crc32(data);
+
+        const local = new Uint8Array(30 + name.length);
+        const localView = new DataView(local.buffer);
+        write32(localView, 0, 0x04034b50);
+        write16(localView, 4, 20);
+        write16(localView, 6, 0x0800);
+        write16(localView, 8, 0);
+        write16(localView, 10, 0);
+        write16(localView, 12, 0);
+        write32(localView, 14, crc);
+        write32(localView, 18, data.length);
+        write32(localView, 22, data.length);
+        write16(localView, 26, name.length);
+        write16(localView, 28, 0);
+        local.set(name, 30);
+        localParts.push(local, data);
+
+        const central = new Uint8Array(46 + name.length);
+        const centralView = new DataView(central.buffer);
+        write32(centralView, 0, 0x02014b50);
+        write16(centralView, 4, 20);
+        write16(centralView, 6, 20);
+        write16(centralView, 8, 0x0800);
+        write16(centralView, 10, 0);
+        write16(centralView, 12, 0);
+        write16(centralView, 14, 0);
+        write32(centralView, 16, crc);
+        write32(centralView, 20, data.length);
+        write32(centralView, 24, data.length);
+        write16(centralView, 28, name.length);
+        write16(centralView, 30, 0);
+        write16(centralView, 32, 0);
+        write16(centralView, 34, 0);
+        write16(centralView, 36, 0);
+        write32(centralView, 38, 0);
+        write32(centralView, 42, offset);
+        central.set(name, 46);
+        centralParts.push(central);
+        offset += local.length + data.length;
+      }
+
+      const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+      const end = new Uint8Array(22);
+      const endView = new DataView(end.buffer);
+      write32(endView, 0, 0x06054b50);
+      write16(endView, 4, 0);
+      write16(endView, 6, 0);
+      write16(endView, 8, files.length);
+      write16(endView, 10, files.length);
+      write32(endView, 12, centralSize);
+      write32(endView, 16, offset);
+      write16(endView, 20, 0);
+
+      return new Blob([...localParts, ...centralParts, end], { type: "application/zip" });
+    }
+
+    async function downloadZip() {
+      const records = await getAll();
+
+      if (!records.length) {
+        announce("Det finns inga sparade underskrifter att exportera.");
+        return;
+      }
+
+      if (records.length > 65535) {
+        announce("ZIP-exporten stöder högst 65 535 filer.");
+        return;
+      }
+
+      const files = records.map(record => ({
+        name: safeFilename(record.name) + "-" + record.id.slice(0, 8) + ".png",
+        blob: record.blob
+      }));
+
+      triggerDownload(await makeZip(files), "underskrifter.zip");
+      announce("ZIP-arkivet har laddats ner.");
+    }
+
+    document.getElementById("saveButton").addEventListener("click", () => {
+      saveNew().catch(() => announce("Kunde inte spara underskriften."));
+    });
+
+    document.getElementById("updateButton").addEventListener("click", () => {
+      updateActive().catch(() => announce("Kunde inte uppdatera underskriften."));
+    });
+
+    document.getElementById("clearButton").addEventListener("click", clearCanvas);
+
+    document.getElementById("cancelEditButton").addEventListener("click", async () => {
+      activeId = null;
+      nameInput.value = "";
+      updateControls();
+      clearCanvas();
+      await renderList();
+      announce("Redigering avslutad.");
+    });
+
+    document.getElementById("downloadButton").addEventListener("click", () => {
+      downloadImage().catch(() => announce("Kunde inte skapa bildfilen."));
+    });
+
+    document.getElementById("downloadZipButton").addEventListener("click", () => {
+      downloadZip().catch(() => announce("Kunde inte skapa ZIP-arkivet."));
+    });
+
+    document.getElementById("cancelDelete").addEventListener("click", () => {
+      deleteTarget = null;
+      dialog.close();
+    });
+
+    document.getElementById("confirmDelete").addEventListener("click", async () => {
+      if (!deleteTarget) return;
+
+      try {
+        await removeRecord(deleteTarget.id);
+
+        if (activeId === deleteTarget.id) {
+          activeId = null;
+          nameInput.value = "";
+          updateControls();
+          setupCanvas();
+        }
+
+        deleteTarget = null;
+        dialog.close();
+        await renderList();
+        announce("Underskriften har raderats.");
+      } catch {
+        announce("Kunde inte radera underskriften.");
+      }
+    });
+
+    document.getElementById("openPanel").addEventListener("click", () => {
+      if (mobileQuery.matches && typeof settingsPanel.showPopover === "function") {
+        settingsPanel.showPopover();
+      }
+    });
+
+    document.getElementById("closePanel").addEventListener("click", () => {
+      if (mobileQuery.matches && settingsPanel.matches(":popover-open")) {
+        settingsPanel.hidePopover();
+      }
+    });
+
+    const resizeObserver = new ResizeObserver(setupCanvas);
+    resizeObserver.observe(canvas);
+
+    async function start() {
+      try {
+        if (!("indexedDB" in window)) throw new Error("IndexedDB stöds inte.");
+        db = await openDatabase();
+        setupCanvas();
+        await renderList();
+      } catch {
+        announce("Lokal lagring kunde inte startas. Kontrollera webbläsarens lagringsinställningar.");
+        document.getElementById("saveButton").disabled = true;
+      }
+    }
+
+    start();
+  </script>
+</body>
+</html>
